@@ -1,0 +1,14 @@
+# $Id: loadrs.lnk,v 1.1 2000/12/29 00:19:34 chris Exp $
+
+MEMORY {
+    HEADER: start = $0000, size = $6, file = %O;
+    RAM: start = $37f2, size = $1000, file = %O;  # size just so
+}
+SEGMENTS {
+    EXEHDR: load = HEADER, type = ro;
+    CODE: load = RAM, type = ro, define = yes;
+    RODATA: load = RAM, type = ro;
+    DATA: load = RAM, type = rw;
+    BSS: load = RAM, type = bss, define = yes;
+    AUTOSTRT: load = RAM, type = ro;
+}

@@ -1,0 +1,14 @@
+# $Id: kermit65.lnk,v 1.2 2001/02/07 23:34:36 chris Exp $
+
+MEMORY {
+    HEADER: start = $0000, size = $6, file = %O;
+    RAM: start = $2d20, size = $8EFF, file = %O;
+}
+SEGMENTS {
+    EXEHDR: load = HEADER, type = ro;
+    CODE: load = RAM, type = ro, define = yes;
+    RODATA: load = RAM, type = ro;
+    DATA: load = RAM, type = rw;
+    BSS: load = RAM, type = bss, define = yes;
+    AUTOSTRT: load = RAM, type = ro;
+}
