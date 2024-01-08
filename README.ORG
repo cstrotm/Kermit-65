@@ -13,7 +13,7 @@ This is an implementation of Kermit-65 for the Atari 8bit with 48K
 
 To build Kermit-65 the ca65 assembler (part of the CC65 development package https://cc65.github.io/) is required.
 
-*** Build in Unix/Linux/macOS
+*** Build on Unix/Linux/macOS systems
 #+begin_example
 git clone https://github.com/cstrotm/Kermit-65
 cd Kermit-65
