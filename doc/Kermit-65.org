@@ -1,0 +1,671 @@
+#+Title Kermit-65 Manual and bug list
+#+Authors: John Dunning, Chris Grössler, Carsten Strotmann
+
+* Kermit-65 for Atari 8 bit machines
+
+Kermit-65 is a port of the kermit-65 available for Commodore machines.
+It runs on 48K Atari 800 family machines.
+
+** Capabilities:
+
+*** File transfer, text and binary:
+
+Without going into excruciating detail here, Kermit-65 is a fairly
+complete implementation of a user side, using the KERMIT protocol.
+It's been tested against Kermit-11 under RSX, MS-DOS Kermit and
+C-Kermit under VMS and Un*x, and seems to work fine. For a description
+of what the KERMIT file protocol is all about, and something about how
+the it works, see the 'Kermit protocol' section at the end of this
+document.
+
+*** Terminal emulation:
+
+Glass TTY, VT52, or VT100. Supports 3 flavors of screen configuration;
+Atari standard screen, 80-column pannable (40-column visible) like
+VTERM, and 80-column graphics, like V10SQR. Terminal emulation modes
+may be used in any combination with screen configurations, though some
+combinations won't work real well; for instance trying to do
+full-screen VT100-style editing when using the Atari screen is a good
+way to lose.
+
+*** Local file management:
+
+Kermit-65 includes Directory, Erase, and Rename commands, allowing the
+user to do most kinds of maintenance operations without leaving the
+program. It also allows you set the default drive to any value 1 thru
+8, so you're not stuck using a single drive for everything.
+
+** Typing at Kermit-65:
+
+The command processor accepts command lines, consisting of a keyword,
+optionally some more keywords, and optional values. Things in command
+lines are delimited by spaces, and terminated by =<CR>=. At any time,
+you may type =?= to get a list of valid completions for the word
+you're typing. You need not type keywords completely; however much
+uniquely identifies the word you want is enough. At any time, =<ESC>=
+will attempt to complete what you've typed so far. Note that if you've
+typed a word, but haven't hit a =<space>= or =<ESC>= yet, so that the
+cursor's at the end of the word, =?= will tell you that there's only
+the one possibility. Hit a space, then =?=, for a list of
+possibilities for the next word. Some commands are /defaults/ in the
+sense that if you type something non-unique, and hit escape, and one
+of the possibilities is a /default/, it will win over the other
+possibilities. One example of this is /Send/.
+
+*Example*: The following illustrates a typical interaction between
+you, the user, and Kermit-65. The stuff that Kermit types (prompts,
+echos of partial commands, and help) is on the left, stuff typed by
+the user is in the middle, and commentary is on the right.
+
+| Kermit types:                                                         | You type: | Comments:                                                               |
+|-----------------------------------------------------------------------+-----------+-------------------------------------------------------------------------|
+| =Kermit-65>=                                                          |           | Kermit prompts.                                                         |
+|                                                                       | =s?=      | User starts typing a command starting with "s", then hits "?" for help. |
+| ="Keyword, one of the following: set  show  send=                     |           | Kermit prints possible completions for "s" ...                          |
+| =Kermit-65>s"=                                                        |           | and reprompts, with the partial command.                                |
+|                                                                       | =et?=     | User finishes the "set"  command, and asks for help again.              |
+| =Keyword, one of the following: set=                                  |           | Kermit prints the (one) possible completion.                            |
+| =Kermit-65>set"=                                                      | " ?"      | User hits a space, then asks for help again.                            |
+| =Keyword, one of the following:  (various subcommands of 'set' here)= |           | Kermit prints possible completions for words that can follow "set"      |
+
+** Kermit-65 commands:
+
+ * =Bye=: Tells the Kermit on the other side to log out, and exits
+   Kermit-65.
+ * =Finish=: Tells the Kermit on the other side to exit server mode,
+   but stay logged in.
+ * =Connect=: Puts Kermit-65 in terminal mode, using whatever
+   parameters are currently set for Terminal and Screen configuration.
+   See =Set Terminal= and =Set screen= for more details.
+ * =Quit=: Exit from Kermit-65 back to Atari DOS.
+ * =Exit=: Same as Quit.
+ * =Get <file spec>=: Ask the Kermit on the other side to send the
+   named file, using whatever file and protocol parameters are
+   currently in effect. See =Set= for more details. Note that =file
+   spec= may be wildcarded; assuming the serving Kermit allows that.
+   In that case the serving Kermit may send several files; Kermit-65
+   will try to receive all of them.
+ * =Send <file spec>=: Send the named file to the Kermit on the other
+   side. If the file spec is wildcarded (using DOS FMS wildcard rules)
+   all matching files are sent. In the latter case, the Kermit on the
+   other side should be in Server mode, so that it can deal with a
+   whole sequence of incoming files.
+ * =Receive <file name>=: Attempt to receive into the named file.
+   Assumes the other Kermit is already trying to send it. If no file
+   name is given, Kermit-65 will attempt to get the name from the
+   file-header information coming from the other side. This is the
+   command to use after telling the other Kermit =Send <something>=.
+ * =Set Baud (50..9600)=: Sets baud rate on the comm port to the
+   supplied value.
+ * =Set Parity [Even | Odd | Mark | Space | None]=: Sets specified
+   parity for the comm port. See the Atari 850 manual or your R:
+   handler documentation for more details on the behavior of the
+   various parity options.
+ * =Set Word-size [ Seven | Eight ]=: Set frame size used for comm
+   port. The default is eight-bit. The preferred value for this
+   depends on what the parameters of the serial line are set to on the
+   other side. In my experience, older systems will tend to use
+   seven-bit configurations, more modern ones will tend to use
+   eight-bits. If you're not sure, it usually works to use eight-bit.
+ * =Set Default-disk <1..8>=: Sets the default disk for all file
+   operations. Legal values are 1 to 8, inclusive.
+ * =Set Rs232-registers <16-bit hex number>=: Directly sets some of
+   the the values used when configuring the serial port. Specifically,
+   the high byte is used as the AUX1 parameter for the XIO 38
+   (configure translation and parity) and the low byte is used as the
+   AUX1 parameter for the XIO 36 (configure baud rate and word size).
+   This allows settings to be used that aren't covered by the supplied
+   keywords in Baud, Parity, and Word-size.
+ * =Set Debugging [ Off | Terse | Verbose ]=: Turns on/off various
+   debug messages strewn around in the code.
+ * =Set Eight-bit-quoting [ On | Off ]=: Turns on/off eight-bit mode
+   quoting in the Kermit protocol. The default is off.
+ * =Set File-warning [ On | Off ]=: When this mode is on, Kermit-65
+   will refuse to overwrite files when receiving. When it attempts to
+   receive a file that's already present, it will alter the filename
+   of the incoming file so as not to overwrite the old version. The
+   algorithm for altering the filename is to replace the extension
+   field of the name with a 2 digit hex number, and retry. If the file
+   still exists, the number is incremented. This repeats until a free
+   name is found, or the extension reaches "FF", at which time the
+   receive is aborted.
+ * =Set File-type Atascii=: This is a standard Atari text file, and is
+   the default mode. End of line is signaled by the ATEOL character
+   ($9B). When sending, other ATASCII characters are translated to
+   their ASCII equivalents, ie ATTAB ($7F) -> Tab ($09), ATRUB ($7E)
+   -> Rubout ($7F). The file header info generated indicates that a
+   text file is being sent. Receiving one does the opposite
+   transformation.
+ * =Set File-Type Ascii=: Files are sent/received as ordinary
+   ASCII-text. Line terminators are assumed to be CR ($0D) followed by
+   LF ($0A), and are handled in the usual Kermit fashion. No
+   translation of data happens. This mode isn't the right thing for
+   regular old text files, but is useful for sending around files that
+   are output in plain ASCII from various utilities. For example, I
+   have a word processor program which produces formatted output files
+   in ASCII, intended to be dumped directly to a printer. This mode
+   gets them over to my pdp-11's print spooler.
+ * =Set File-Type Binary=: Data is sent in kermit binary form, no line
+   terminators etc.
+ * =Set Flow-control [ On | Off ]= Turns ^S^Q flow control on/off for
+   the incoming line. See 'Com port handling', below, for more
+   details.
+ * =Set Ibm-mode [ On | Off ]=: Turns on/off 'IBM mode'. This is
+   apparently a standard thing in Kermit implementations, made
+   necessary by the wierditudes designed into the blue equipment. This
+   code has been left as is, so it's got some chance of working, but
+   has not been tested.
+ * =Set Local-echo [ On | Off ]=: Controls echo mode in terminal
+   emulator. Default is off.
+ * =Set Send [ End-of-line | Padding | Timeout | Pad-char |
+   Quote-char | Eight-bit-quote | Packet-length ]=: Sets one of the
+   listed parameters for the transmitting side of the Kermit protocol.
+   Padding, timeout (seconds), and packet-length are in decimal, the
+   others (character codes) are in hex. This command is primarily used
+   when talking to a Kermit that can't or won't use the standard set
+   of protocol characters for beginning-of-frame, end-of-frame, etc.
+   As such, it's not generally useful, at least I've never seen a
+   Kermit that required it. There are things that might come in handy,
+   though. For instance, if you've got an exceptionally dirty phone
+   connection, you might want to set the frame size down from the
+   default of 94. In that case, you might say =Set Send Frame-size
+   30=. Note that Send parameters can be reset by the other Kermit
+   sending one of the kinds of packets that request certain values,
+   so you may have to tell him directly, to get the effect you want.
+ * =Set Receive [ End-of-line | Padding | Timeout | Pad-char |
+   Quote-char | Eight-bit-quote | Packet-length ]=: All parameters
+   settable same as =Send=
+ * =Set Screen-driver Atari=: The standard 24x40 Atari screen driver.
+   This mode does its output to the internal E: device. This isn't
+   very useful for complicated things, but is supplied in case
+   Kermit's running someplace where there's not enough memory to do
+   anything better. It could be used to connect to ATASCII BBS
+   systems.
+ * =Set Screen-driver 40-column=: A 24x80 screen, using the character
+   CTIA/GTIA mode. Since that mode only allows 40 visible columns, the
+   screen is pannable left to right, allowing any 40-column chunk to
+   be displayed. The terminal code will attempt to keep the cursor
+   visible by panning around while output is happening. You can also
+   pan manually using the Start and Select keys. In this mode,
+   reverse-video output works, but none of the other highlighting
+   types.
+ * =Set Screen-driver 80-column=: A 24x80 screen, using the hi-res
+   (320 bits/raster) graphics 8 mode. In this mode, both reverse video
+   and underlining are supported. This is the default setting for
+   screen mode.
+ * =Set Terminal-emulation [ Vt100 | Vt52 | None ]:= Sets the terminal
+   emulation mode to the specified value. The default is Vt100.
+ * =Show=: any of the same keywords as =Se=', or =All=. Display the
+   value(s) of the specified thing(s). =All= displays the values of
+   everything in sight.
+ * =Status=: Dump various goodies about the last file transfer;
+   characters in, out, naks, timeouts etc.
+ * =Directory [<filespec>]=: Display a directory list from the default
+   drive. =<filespec>= is optional, if omitted, it defaults to =*.*=.
+ * =Rename <from-filespec> <to-filespec>=: Does a rename operation on
+   files on the default drive. Either filespec may be wildcarded, in
+   which case the rename operation happens according to the rules
+   described in the ATARI OS FMS documentation.
+ * =Erase <filespec>=: Erases files on the default drive. Filespec may
+   be wildcarded, in which case the erase operation happens according
+   to the rules described in the ATARI OS FMS documentation.
+ * =Save=: Dump Kermit-65 parameters such as screen settings,
+   send/receive parameters, etc to an init file =KERMIT.INI= on the
+   default disk.
+ * =Restore=: Read parameters from =KERMIT.INI= back into the running
+   Kermit-65.
+ * =Help=: Gives a summary of the above command list.
+
+** Other interesting things about terminal modes:
+
+Depending on what terminal you're using, there are several things
+which may be of interest. In 40 or 80 column modes, there's a status
+line under the 24 data lines. It displays what special keys are
+active, and the status of the comm port. In 40 column mode, =START=
+pans the screen right, and =SELECT= pans left. In both 40 and 80 col
+modes, =OPTION= is used to get the Kermit's attention. In Atari mode,
+=c-Y= is used instead. Once you have Kermit's attention, it wants a
+character; one of:
+
+       | C | Break the connection          |
+       | B | Send a break (approx 1/4 sec) |
+       | S | Display status                |
+
+
+** Function keys:
+
+Kermit-65 can generate function key sequences ala VT100. The current
+function key bindings are as follows: (c-sh-  means control-shift...)
+
+       |     c-sh-0..c-sh-9 |  keypad 0 thru 9 |
+       |     c-sh-.         | keypad dot |
+       |     c-sh-backspace | keypad minus |
+       |     c-sh-,         | keypad comma |
+       |     c-sh-return    | Enter |
+       |     c-sh-q..c-sh-r | PF1..PF4 |
+       |     c-sh--         | Up arrow |
+       |     c-sh-=         | Down arrow |
+       |     c-sh-<         | Left arrow |
+       |     c-sh->         | Right arrow |
+
+Other key bindings for things not on the Atari keyboard:
+
+       | sh-<                   | { (left brace)  |
+       | sh->                   | } (right brace) |
+       | sh-backspace           | ~ (tilde)       |
+       | c-sh-backspace, or c-7 | ` (backquote)   |
+
+These key bindings aren't quite what I had in mind, but the OS ROM
+won't let me get at all the control-shift keypresses, so they'll have
+to do for now. I encourage any feedback about how these feel. I've
+been using them for a while now, and they don't seem as bad as I
+expected. In particular, they work passably well when using EDT (I'm
+typing this document with it), which I think is an indication that
+they're use-able, as it's a real keypad hog.
+
+*** Other special keys:
+
+The Atari key (=/|\= on 800 vintage dinosaurs like mine, =|/|= on
+newer 800XL vintage equipment) behaves in a special fashion when using
+Kermit-65. It toggles a flag that causes input from the comm port to
+be held up, rather than processed as soon as possible. This is useful
+for causing the screen to hold up temporarily when in terminal mode.
+If flow control is enabled, it behaves in the expected fashion; it'll
+tell the other side to shut up until you press the Atari key again, to
+let pending input be processed again.
+
+*** The status line:
+
+When in 40-column or 80-column terminal modes, there's a 25th line
+below the usual 24 lines of terminal screen. This is the status line.
+It will look something like this:
+
+    #+begin_example
+      K65: Option          + o v      Rs ok
+    #+end_example
+
+
+There are several interesting things displayed here: At the left side,
+after =K65=, is a list of which special keys (option, select, start)
+are active at the moment. If you press =OPTION=, this will change to a
+prompt for the special characters that can follow =OPTION=. In column
+22 (=+=, above) will appear =+= or =-=, or =space=. This indicator
+shows you the state of the flow-control logic; =+= means incoming
+traffic is enabled, =-= means it's disabled. Note that it when
+flow-control is turned on (see commands, above) this flag will toggle
+back and forth between =+= and =-= as the flow-control logic does its
+thing. If flow-control is turned off, it will just sit on + all the
+time. Column 24 (=o= above) will contain a blot if comm-port reading
+is suspended, space otherwise. In column 26, (=v=) above, is the caps
+lock indicator. It will display an up-arrow if caps are locked, or a
+down-arrow if not. In column 32 is a message describing the last known
+state of the comm port.
+
+**  Com port handling:
+
+In its current configuration, Kermit-65 expects to talk thru an Atari
+850 (or compatible device). In principal, that ought not to be a
+restriction, but I (JRD) only have an 850 to test with, and don't know
+what requirements there are for other devices. I've tried to be
+scrupulous about sticking to the documented interfaces to things,
+however, so I'd expect any driver that adheres to the spec to work.
+
+The port's opened and closed a lot; you'll hear it, as I've left the
+'noisy bus' option turned on. It uses page 6 ($600) as an IO buffer.
+Since that's only 256 bytes, there's the possibility of overruns at
+high baud rates. When flow-control's on, Kermit will attempt to shut
+off the other side when it sees more than 50 bytes pending; it will
+turn it back on when there's less than 10.
+
+As of this writing, Kermit-65 has been out in the field for a while,
+and seems to work ok with things other than 850s. One word of caution;
+I've gotten some feedback to the effect that the default timeout
+values I chose are too short for reliable operation at low baud rates.
+I've decided not to change the defaults, as you can easily change them
+in your =KERMIT.INI= file, and because most folks seem to have access to
+1200 bps modems and things these days. However, if you're running at
+300 bps and seeing reliability problems, try pushing the timeouts up
+to say 15 sec or so.
+
+** Other ramblings:
+
+Version 3.3 loads at $2D20, and uses up thru about $B000. That means
+it'll only run on 48K machines. It appears to run fine on XL and XE
+equipment, but most of my testing has been on an 800, so there may be
+some problems. BTW, that load address was chosen because the latest
+version of DOS XL for Indus GT's uses up thru $2D14 when it's
+configured for two drives, and the 850 driver is loaded. Older
+versions of DOS XL take up less memory, as does Atari DOS. I don't
+know what the requirements are for things like Spartados. If anyone
+comes up with a conflict, let me know, and I'll assemble you a version
+that's org'ed somewhere else.
+
+On XLs and XEs, Kermit-65 will require that the machine be booted with
+BASIC disabled, as it's not yet bright enough to detect that that's
+where it is and map out the cart. (if anyone knows how to do that, and
+feels like saving me some work...) Kermit-65 is available in 'bare'
+form, or with an autoloader for the 850 driver prepended to it. The
+bare version requires that you load whatever rs232 driver you're going
+to use first, then run Kermit. The autoloader equipped version does
+that for you.
+
+* Credits
+
+I blew it when distributing the first version of this document, and
+forgot to include this section. Mea culpa.
+
+Many thanks to my beta testers, in particular Marshall Abrams, for his
+patience in dealing with initial versions of this thing, and for aid
+in making this document clearer. Thanks also to John Sangster for
+helping nail down my obscure terminal emulator bugs, and miscellaneous
+kibutzing. (Sorry John, I still haven't gotten in the key defining
+util. Maybe next version).
+
+* Bugs and misfeatures:
+
+ * There's no way to set the comm port to other than R1:. Does anyone
+   care?
+ * The help processor doesn't deal properly with upper-case, and
+   thinks there are no completions.
+ * VT100 mode is missing still missing insert/delete character.
+ * Blinking fields, bright fields, double-high, double-wide, and
+   132-col mode are not supported. (Reverse vid and underline are)
+ * There's currently no way to set the screen colors.
+ * It's possible to confuse yourself by hitting c-1 in terminal mode,
+   as my screen drivers ignore it, but Atari's doesn't. You're fine
+   until you break the connection, then everything appears to wedge
+   up.
+ * Flow control for the incoming side of the connection isn't
+   implemented. This can cause problems when trying to send at high
+   baud rates to a host that's got a stupid serial driver, or a small
+   type-ahead buffer.
+ * The part of the command parser that deals with pathnames is
+   completely bankrupt (that's what I get for using old code), and
+   doesn't work properly unless it's told that a null pathname is
+   legal. The result of all this is that when entering pathnames and
+   asking for help before entering any data, it will tell you "input
+   file spec or confirm with <cr>". Pay no attention to the man behind
+   the curtain; you really do have to put a pathname in there for
+   anything to happen.
+
+* Changelog
+** Bugs fixed for v 3.1
+ * Save and Restore now actually do something, instead of being
+   effectively no-ops.
+ * Rename and Erase commands are now implemented. This means that
+   virtually all file operations one cares about (while
+   up/downloading) can be done without leaving Kermit.
+ * File-warning mode has been fixed so that it really does something
+   useful, instead of just bitching about the file conflict.
+ * The pathname parsing substrate has been installed, so that
+   defaulting and merging can be done in a reasonable fashion, instead
+   of by ad hoc kludgery.
+ * The screen hacking code has been cleaned up a good bit, so as not
+   to be continually clearing the screen when doing transfers.
+ * Logging code has been added to tell the user what files are being
+   sent and received.
+ * Status and help commands in terminal mode are now working.
+ * The directory command now takes an optional filespec parameter.
+** Bugs fixed for v 3.2
+ * Binary mode now works again. (Sheesh!)
+ * Rename and Erase routines now make sure the comm port's closed
+   before attempting to hack the disk.
+ * The user interface has been cleaned up some; all numeric values
+   other than character codes and some debugging info is now displayed
+   and entered in decimal, rather than hex.
+** Bugs fixed for v 3.3
+ * Fixed a dumb bug in terminal code that caused graphics mode to be
+   entered at unexpected times.
+ * Fixed file reading code so as not to get confused and generate an
+   extra byte when running under non-standard things like SpartaDos.
+ * Cleaned up Directory code;  using new pathname-mapping substrate.
+ * Added support for wildcarded pathnames in Send code.
+ * Fixed packet-dumping debug code to not mask off top bit of char,
+   and quote everything to keep from interpreting screen hacking
+   chars.
+ * Fixed init code to look for an init file on D1, and read it if
+   found.
+ * Fixed flow control code so as not to wedge up unexpectedly.
+ * Re-enabled the suspend-input capability, using the Atari (=/|\=)
+   key.
+ * Break (Option-B) in terminal mode has been fixed.
+ * Cleaned up the font used in 80-col mode.
+ * Removed Speedscript file type, as Speedscript apparently just uses
+   plain vanilla text files. Changed default file type to Atascii.
+ * Added caps lock functionality, similar to standard Atari keyboard
+   driver.
+ * Fixed a bug in terminal mode that was trashing the stack.
+
+* The Kermit Protocol
+
+The following a brief description of the Kermit file protocol,
+excerpted from one of the many documents kicking around. If you
+already know what it is, or don't care, skip this section.
+
+The Kermit protocol allows many (if not most) types of computer
+systems to effect, at minimum, error free file transfer with other
+systems and microcomputers over asynchronous lines.
+
+** Introduction
+
+With the widespread use of personal computers the need for file
+exchange between systems has become of foremost concern among users
+and managers alike. There are many commercial products available which
+meet this need, some of which may offer more advanced functions such
+as transparent record oriented file access. Networks that do this,
+such as DECnet, can be expensive, and if your computer or
+microcomputer is not on the network your needs won't be met. Transfer
+of files with removable disks can work, but generally only when the
+computers are of the same type, it's not very useful when the systems
+are removed in location. Rarely will a larger mini or supermini be
+able to read a microcomputer's disk.
+
+A more realistic approach, from both cost and convenience, is to find
+a way to use ordinary telecommunications and/or in-house PBX systems
+to connect computers and microcomputers together. If a local
+connection using a PBX or front end switch is not available, there is
+always dialup access with standard 103/212 modems. Data can be
+transferred with very simple methods, such as TYPING a file on one
+system and capturing it on the other system, but this gives no
+protection from noise and overrun of data. It is not very user
+friendly either. What is really needed is a protocol to accomplish
+file transfer reliably and efficiently.
+
+The first obvious use of any program or protocol designed to
+accomplish file transfer is to be able to provide the ability to
+support file uploads and downloads from minis and superminis such as
+the VAX and PDP-11 to remote personal computers, such as the
+Atari 800. It should also be widely available for many different
+micros and mainframes. File transfer from micro to micro, as well as
+from a larger central host, should be possible. The command interface
+should be easy to learn, and require no intervention from a central
+site operator or other user. The many implementations of Kermit
+follow these lines, and all versions allow some form of transfer in
+either direction. More advanced versions, such as those found on the
+PDP-11, DEC10/20 and VAX, offer what is known as server operation,
+which allow the remote (connected) Kermit system to completely
+control the file exchanges from their system. Since as of this writing
+(October 9, 1985) there are available over 160 versions of Kermit
+available for numerous micro, mini and mainframe configurations,
+Kermit addresses this need quite well.
+
+While the primary use of Kermit will likely be to support file
+transfer from microcomputer to mini/supermini and mainframe
+connections, there are many uses for Kermit for connections from mini
+to mini and so on.
+
+** The Kermit protocol
+
+The Kermit protocol is designed to operate over normal asynchronous
+terminal lines. All data and commands are transferred with a packet
+oriented protocol, basically consisting of a start of packet character
+(normally SOH), followed by length, control, data and checksum fields.
+Communication is half duplex, in that for every packet sent, the
+sender must wait for either an acknowledgment packet (ACK) or a
+negative acknowledgment packet (NAK). Transmission is in ASCII, with
+no requirements for the transmission of eight bit characters or
+control characters other than control-A for marking the start of a
+packet. All 'control' characters embedded in the data are prefixed
+to convert them to print- able characters, the same applying to eight
+bit characters if required by the characteristics of the line. Since
+there are many different implementations of Kermit, the protocol
+provides a mechanism by which the capabilities of two connected
+Kermits can be negotiated to allow for differences in the level of
+protocol sup- port. Examples of protocol features that not all Kermits
+understand include data compression and transfer of file attributes.
+
+The packet format is
+
+        +------+-----+-----+------+---------------+-------+
+        | MARK | LEN | SEQ | TYPE |    DATA...    | CHECK |
+        +------+-----+-----+------+---------------+-------+
+
+where all fields consist of ASCII characters, and the char function
+converts a number in the range 0-94 (10) to a printable ASCII
+character by adding 32 (10). The MARK, LEN, SEQ and TYPE fields are
+one byte, the DATA field is variable in size, and the CHECK field is
+one to three bytes in size. The MARK (normally control A) signifies
+the start of a packet. The length field tells how long the rest of the
+packet is. The SEQ field is used to insure synchronization used to
+detect lost or duplicate packets. The SEQ number wraps around every 64
+packets due to the need to encode it as a printable ASCII character in
+the range 32 (10) to 126 (10). The TYPE field specifies whether the
+packet is a DATA or CONTROL packet. The DATA section is used for the
+actual transfer of data or informative messages from a Kermit server,
+this field can be up to 90 characters in length. Any character whose
+low seven bits fall in the range of 0 to 37 (8), ie, char and 177 (8)
+is less than 40 (8), will have the value 100 (8) exclusive or'ed
+(xor'ed) with itself and be prefixed by a shift character, '#'. Other
+shift characters may be use for eight bit characters if the line
+characteristics require such. Data compression may also occur in the
+data field, this is done with yet another shift code and byte count
+sequence. The CHECK field is a checksum, either a one character, two
+character or three character CRC check; the sender computes it and the
+receiver must compute it and compare. A checksum mismatch will result
+in the receiver sending a NAK packet (negative acknowledgment) which
+directs the sender to resend the NAK'ed packet. The packet may be
+following by a terminator (likely an ascii 13). This terminator is NOT
+part of the protocol and is sent only to tell the receiver that a
+'line' is present. Not all Kermit implementations require this; all
+Kermits will discard data outside of a packet in any event.
+
+Error detection and recovery is by checksum, as noted, and by packet
+read timeouts. If the packet should be corrupted the checksum will be
+incorrect, the receiver will NAK the packet. If an expected packet
+never arrives within the timeout period, or if the received packet is
+not the expected one (as determined by the SEQ field) the packet will
+also be NAK'ed. There are limits as to how many times an expected
+packet will be NAK'ed without aborting the current operation.
+
+*** Packet types
+
+#+begin_example
+        D   Data
+        Y   Acknowledgement (ACK), test may be in DATA field
+        N   Negative Acknowledgement (NAK)
+        S   Send initiate (Send-Init)
+        R   Receive Initiate
+        B   Break (EOT, end of transmission)
+        F   File name header
+        Z   End of file (EOF, end of current file)
+        E   Error packet, text may be present in DATA field
+        G   Generic SERVER command.  The first character in the
+            data field will be a command to a server, arguments
+            may follow that character.
+          I   Login, user and password follow in data field
+          C   CWD, change working or default directory.
+          L   Bye, Logout server
+          F   Finish, Exit server, but do not log out
+          E   Erase, delete files on server system
+          D   Directory query
+          U   Disk space usage query
+          T   Type a file onto local kermit
+          R   Rename file(s) on server system
+          K   Copy file(s) on server system
+          W   Who's logged in, as in sho sys, sy/s, dev tt
+          M   Send a terminal message to a user
+          H   Help, the server responds with commands it can do
+          Q   Server status query
+          P   Program, run a program
+          J   Journal
+          V   Variable, alter a Kermit setting
+        C   Execute host command. The host command follows in
+            the data field.
+#+end_example
+
+Note that some of the generic server commands, as well as the C
+packet, may not be feasible for a given environment. For instance, the
+REMOTE LOGIN command, which sends the generic I command to the server,
+can only be done under systems that allow you to dial up and start a
+Kermit without logging in; the generic U command (disk space) is
+meaningless under some systems (like RSX) unless one wants the free
+space on the entire volume. No Kermit server will abort on receiving a
+packet it can't execute, it will simply send an error packet with an
+informative message saying it can't process the requested function.
+
+An example of a Kermit-65 Kermit telling a PRO Kermit-11 server to
+expect a file follows.  The Kermit-65 command was =Send foo.txt=
+
+#+begin_example
+            (0)Atari sends: * S~# @-#Y(
+            (0)Pro   sends: 0 Y~* @-#Y1~*  ~T
+            (1)Atari sends: *!FFOO.TXTE
+            (1)Pro   sends: #!Y?
+            (2)Atari sends: S"DThis is a test file#M#J
+                            containing two lines.#M#JU
+            (2)Pro   sends: #"Y@
+            (3)Atari sends: ##ZB
+            (3)Pro   sends: ##YA
+            (4)Atari sends: #$B+
+            (4)Pro   sends: #$YB
+#+end_example
+
+In packet zero, the Kermits exchanged information regarding their
+capabilities. The Atari sent an 'S' packet with the data for its
+maximum packet length, default time out, number of pad characters to
+follow a packet (none, hence the space), use a null for pad- ding, end
+of line terminator (a CR + 32), the prefix character for control
+characters, and a 'YES' to say the it can prefix eight bit characters
+with the default. It doesn't send any of the extension fields, like
+indicators for multi-byte CRCs, file header info etc. In packet 1, the
+Atari sends the filename the Pro should use for the file it creates.
+The Pro then sends the acknowledgment. In packet three, the Atari
+sends the first (and only for this file) packet of data. Note that the
+sequence #M#J is a carriage re- turn/line feed sequence with 100 (8)
+xored into each character. The '#' character informs the other Kermit
+that it must xor the next character with 100 (8). In packet three the
+Atari sends an EOF packet, the Pro acks it. In packet four, the Atari
+sends a break packet which tell the Pro that no more files (of a
+possibly wildcard group) are coming and the Pro Kermit acks the break
+packet. The Pro Kermit then enters the server idle state. More
+specific information regarding Kermit packets and state transitions
+can be found in the references listed at the end of the article.
+
+** Future directions
+
+With the advent of packet switched networks and satellite
+communications the Kermit protocol will likely be extended to increase
+efficiency over such links. The main problem is the half duplex nature
+of Kermit, the packet acknowledgments can take up to several seconds
+in transit thus drastically reducing the throughput. There are several
+possibilities under discussion and a standard should be appearing
+shortly.
+
+** Summary
+
+With the knowledge that there are Kermit implementations for most
+personal computers in use it becomes apparent that the Kermit standard
+is well worth looking in to.
+
+(End of protocol description)
+
+For more documentation on what Kermit protocol is all about, see the
+extensive doc available from the Kermit folks at
+https://www.kermitproject.org/
+
+** References:
+ * Kermit: A File-transfer Protocol for Universities Frank da Cruz and
+   Bill Catchings, BYTE Magazine, June/July 1984
+ * The Kermit Protocol Manual, version 5, Frank da Cruz April 1984,
+   Columbia University Center for Computing Activities
+ * Kermit Project: https://www.kermitproject.org/
