@@ -1,0 +1,21 @@
+* Kermit-65 for Atari 8bit machines
+
+This is an implementation of Kermit-65 for the Atari 8bit with 48K
+(Atari 800, Atari 800XL, Atari 130 XE).
+
+** Contributors
+
+ * John Dunning (original port from the Commdore64 version)
+ * Chris Grössler (adaption for cc65)
+ * Carsten Strotmann (Update of documentation, German translation and repo maintainer)
+
+** How to build
+
+To build Kermit-65 the ca65 assembler (part of the CC65 development package https://cc65.github.io/) is required.
+
+*** Build in Unix/Linux/macOS
+#+begin_example
+git clone https://github.com/cstrotm/Kermit-65
+cd Kermit-65
+make
+#+end_example
